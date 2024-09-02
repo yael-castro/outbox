@@ -8,7 +8,9 @@ import (
 	"github.com/yael-castro/outbox/internal/app/business"
 	inhttp "github.com/yael-castro/outbox/internal/app/input/http"
 	"github.com/yael-castro/outbox/internal/app/output/postgres"
+	"log"
 	"net/http"
+	"os"
 )
 
 func Inject(ctx context.Context, mux *http.ServeMux) (err error) {
@@ -18,7 +20,9 @@ func Inject(ctx context.Context, mux *http.ServeMux) (err error) {
 		return err
 	}
 
-	saver := postgres.NewPurchaseSaver(&db)
+	errLogger := log.New(os.Stderr, "[ERROR]", log.LstdFlags)
+
+	saver := postgres.NewPurchaseSaver(&db, errLogger)
 	confirmer := business.NewPurchaseConfirmer(saver)
 
 	errFunc := inhttp.ErrorFunc(nil)

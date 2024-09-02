@@ -1,0 +1,68 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Outbox API",
+    "description": "Transactional outbox pattern",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    },
+    {
+      "url": "http://localhost"
+    }
+  ],
+  "paths": {
+    "/v1/purchases": {
+      "post": {
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CreatePurchase"
+        },
+        "responses": {
+          "201": {
+            "description": "Success scenario!",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Purchase"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Purchase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "order_id": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "requestBodies": {
+      "CreatePurchase": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "order_id": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

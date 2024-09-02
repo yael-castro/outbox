@@ -24,6 +24,7 @@ func PostPurchase(c business.PurchaseConfirmer, errFunc func(http.ResponseWriter
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(purchase)
 	}
