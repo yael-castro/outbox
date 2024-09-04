@@ -9,13 +9,16 @@ const (
 // SQL SELECT statements
 const (
 	// TODO: replace this query to read from WAL
-	selectPurchaseMessage = `
-		SELECT 
+	selectPurchaseMessages = `
+		SELECT
+			id,
 			purchase_id,
 			order_id
-		FROM purchases p
-		WHERE NOT delivered
+		FROM purchases_outbox p
+		WHERE delivered_at IS NULL
 		ORDER BY order_id DESC
 		LIMIT $1
 	`
+
+	updatePurchaseMessage = `UPDATE purchases_outbox SET updated_at = now(), delivered_at = now() WHERE id = $1`
 )

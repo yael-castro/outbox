@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/yael-castro/outbox/internal/app/business"
 	"net/http"
@@ -21,11 +22,18 @@ func ErrorFunc(errFunc func(w http.ResponseWriter, err error)) func(http.Respons
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
+
 		switch businessErr {
 		case // Bad requests
 			business.ErrMissingPurchaseID,
 			business.ErrMissingPurchaseOrderID:
-			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"code":  businessErr.Error(),
+				"error": err.Error(),
+			})
 		}
 	}
 }

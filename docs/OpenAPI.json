@@ -16,6 +16,10 @@
   "paths": {
     "/v1/purchases": {
       "post": {
+        "operationId": "createPurchase",
+        "tags": [
+          "Purchases"
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/CreatePurchase"
         },

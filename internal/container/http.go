@@ -20,12 +20,15 @@ func Inject(ctx context.Context, mux *http.ServeMux) (err error) {
 		return err
 	}
 
-	errLogger := log.New(os.Stderr, "[ERROR]", log.LstdFlags)
+	errLogger := log.New(os.Stderr, "[ERROR] ", log.LstdFlags)
 
 	saver := postgres.NewPurchaseSaver(&db, errLogger)
 	confirmer := business.NewPurchaseConfirmer(saver)
 
 	errFunc := inhttp.ErrorFunc(nil)
+
+	// Setting routes
+	// TODO: should this be here?
 	mux.HandleFunc("POST /v1/purchases", inhttp.PostPurchase(confirmer, errFunc))
 	return
 }

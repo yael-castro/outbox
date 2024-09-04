@@ -7,6 +7,7 @@ const (
 	_ Error = iota
 	ErrMissingPurchaseID
 	ErrMissingPurchaseOrderID
+	ErrDuplicatedOrderID
 )
 
 type Error uint8
