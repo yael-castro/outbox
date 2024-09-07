@@ -9,15 +9,23 @@ import (
 	"log"
 )
 
-func NewPurchaseSaver(db *sql.DB, errLogger *log.Logger) business.PurchaseSaver {
+type PurchaseSaverConfig struct {
+	Topic  string
+	DB     *sql.DB
+	Logger *log.Logger
+}
+
+func NewPurchaseSaver(config PurchaseSaverConfig) business.PurchaseSaver {
 	return purchaseSaver{
-		errLogger: errLogger,
-		db:        db,
+		errLogger: config.Logger,
+		topic:     config.Topic,
+		db:        config.DB,
 	}
 }
 
 type purchaseSaver struct {
 	errLogger *log.Logger
+	topic     string
 	db        *sql.DB
 }
 
@@ -45,12 +53,19 @@ func (p purchaseSaver) SavePurchase(ctx context.Context, purchase *business.Purc
 		return
 	}
 
-	// Inserting message outbox
+	message, err := purchaseSQL.MarshalBinary()
+	if err != nil {
+		p.errLogger.Printf("marshaling purchase record: %v", err)
+		return
+	}
+
+	// Inserting outbox message
 	_, err = tx.ExecContext(
 		ctx,
-		insertPurchaseOutbox,
-		purchaseSQL.ID,
-		purchaseSQL.OrderID,
+		insertOutboxMessage,
+		p.topic,
+		nil,
+		message,
 	)
 	if err != nil {
 		p.errLogger.Printf("inserting purchase message: %v", err)

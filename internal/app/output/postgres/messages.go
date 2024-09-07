@@ -8,17 +8,17 @@ import (
 	"github.com/yael-castro/outbox/internal/app/business"
 )
 
-func NewPurchaseMessagesReader(db *sql.DB) business.PurchaseMessagesReader {
-	return purchaseMessageReader{
+func NewMessagesReader(db *sql.DB) business.MessagesReader {
+	return messageReader{
 		db: db,
 	}
 }
 
-type purchaseMessageReader struct {
+type messageReader struct {
 	db *sql.DB
 }
 
-func (p purchaseMessageReader) ReadPurchaseMessages(ctx context.Context) ([]business.PurchaseMessage, error) {
+func (p messageReader) ReadMessages(ctx context.Context) ([]business.Message, error) {
 	const defaultLimit = 100
 
 	rows, err := p.db.QueryContext(ctx, selectPurchaseMessages, defaultLimit)
@@ -30,27 +30,29 @@ func (p purchaseMessageReader) ReadPurchaseMessages(ctx context.Context) ([]busi
 	}()
 
 	const expectedMessages = 100
-	messages := make([]business.PurchaseMessage, 0, expectedMessages)
+	messages := make([]business.Message, 0, expectedMessages)
 
 	for rows.Next() {
-		message := PurchaseMessage{}
+		message := Message{}
 
 		err = rows.Scan(
 			&message.ID,
-			&message.Purchase.ID,
-			&message.Purchase.OrderID,
+			&message.Topic,
+			&message.Key,
+			&message.Header,
+			&message.Content,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		messages = append(messages, message.ToBusiness())
+		messages = append(messages, *message.ToBusiness())
 	}
 
 	return messages, nil
 }
 
-func (purchaseMessageReader) Close() error {
+func (messageReader) Close() error {
 	return nil
 }
 
@@ -64,7 +66,7 @@ type messageDeliveryConfirmer struct {
 	db *sql.DB
 }
 
-func (m messageDeliveryConfirmer) ConfirmMessageDelivery(ctx context.Context, message business.PurchaseMessage) error {
-	_, err := m.db.ExecContext(ctx, updatePurchaseMessage, message.ID)
+func (m messageDeliveryConfirmer) ConfirmMessageDelivery(ctx context.Context, messageID uint64) error {
+	_, err := m.db.ExecContext(ctx, updatePurchaseMessage, messageID)
 	return err
 }

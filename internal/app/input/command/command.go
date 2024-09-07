@@ -8,9 +8,9 @@ import (
 
 type Command func(context.Context)
 
-func NotifyPurchases(notifier business.PurchasesNotifier, infoLogger, errLogger *log.Logger) Command {
+func Relay(relay business.MessagesRelay, errLogger *log.Logger) Command {
 	return func(ctx context.Context) {
-		err := notifier.NotifyPurchases(ctx)
+		err := relay.RelayMessages(ctx)
 		if err != nil {
 			errLogger.Println(err)
 		}

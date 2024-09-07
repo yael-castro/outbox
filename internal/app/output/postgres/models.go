@@ -3,6 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"github.com/yael-castro/outbox/internal/app/business"
+	"github.com/yael-castro/outbox/pkg/pb"
+	"google.golang.org/protobuf/proto"
 )
 
 func NewPurchase(purchase *business.Purchase) Purchase {
@@ -30,14 +32,29 @@ func (p *Purchase) ToBusiness() *business.Purchase {
 	}
 }
 
-type PurchaseMessage struct {
-	ID       sql.NullInt64
-	Purchase Purchase
+func (p *Purchase) MarshalBinary() ([]byte, error) {
+	purchase := pb.Purchase{
+		Id:      p.ID.Int64,
+		OrderId: p.OrderID.Int64,
+	}
+
+	return proto.Marshal(&purchase)
 }
 
-func (p PurchaseMessage) ToBusiness() business.PurchaseMessage {
-	return business.PurchaseMessage{
-		ID:       uint64(p.ID.Int64),
-		Purchase: *p.Purchase.ToBusiness(),
+type Message struct {
+	ID      sql.NullInt64
+	Key     sql.NullString
+	Topic   sql.NullString
+	Header  []byte
+	Content []byte
+}
+
+func (m *Message) ToBusiness() *business.Message {
+	return &business.Message{
+		ID:      uint64(m.ID.Int64),
+		Key:     m.Key.String,
+		Topic:   m.Topic.String,
+		Header:  m.Header,
+		Content: m.Content,
 	}
 }

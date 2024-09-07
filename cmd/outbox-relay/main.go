@@ -17,12 +17,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 	defer stop()
 
-	// Listening for shutdown gracefully
-	doneCh := make(chan struct{})
-	defer close(doneCh)
-
-	go shutdown(ctx, doneCh)
-
 	// DI in action!
 	var cmd command.Command
 
@@ -32,9 +26,16 @@ func main() {
 		return
 	}
 
+	// Listening for shutdown gracefully
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	go shutdown(ctx, doneCh)
+
 	// Executing command
 	log.Printf("Message relay version '%s' is running", runtime.GitCommit)
 	cmd(ctx)
+	stop()
 	<-doneCh
 }
 

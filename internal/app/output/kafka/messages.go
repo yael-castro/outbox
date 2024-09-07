@@ -6,17 +6,17 @@ import (
 	"log"
 )
 
-func NewPurchaseMessageSender(info *log.Logger) business.PurchaseMessageSender {
-	return purchaseMessageSender{
+func NewMessageSender(info *log.Logger) business.MessageSender {
+	return messageSender{
 		info: info,
 	}
 }
 
-type purchaseMessageSender struct {
+type messageSender struct {
 	info *log.Logger
 }
 
-func (p purchaseMessageSender) SendPurchaseMessage(ctx context.Context, purchase business.PurchaseMessage) error {
-	p.info.Printf("Message: %+v\n", purchase) // TODO: implement me!
+func (p messageSender) SendMessage(_ context.Context, message *business.Message) error {
+	p.info.Printf("Message: %+v\n", message) // TODO: implement me!
 	return nil
 }

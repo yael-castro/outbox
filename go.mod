@@ -2,4 +2,7 @@ module github.com/yael-castro/outbox
 
 go 1.22
 
-require github.com/lib/pq v1.10.9
+require (
+	github.com/lib/pq v1.10.9
+	google.golang.org/protobuf v1.34.2
+)

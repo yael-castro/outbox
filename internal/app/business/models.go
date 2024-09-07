@@ -15,7 +15,10 @@ func (p Purchase) Validate() error {
 	return nil
 }
 
-type PurchaseMessage struct {
-	ID       uint64
-	Purchase Purchase
+type Message struct {
+	ID      uint64
+	Key     string
+	Topic   string
+	Header  []byte
+	Content []byte
 }

@@ -26,12 +26,12 @@ func Inject(ctx context.Context, cmd *command.Command) (err error) {
 	}
 
 	// Secondary adapters
-	reader := postgres.NewPurchaseMessagesReader(&db)
-	sender := kafka.NewPurchaseMessageSender(infoLogger)
+	reader := postgres.NewMessagesReader(&db)
+	sender := kafka.NewMessageSender(infoLogger)
 	confirmer := postgres.NewMessageDeliveryConfirmer(&db)
 
 	// Business logic
-	notifier := business.NewPurchasesNotifier(business.PurchasesNotifierConfig{
+	messagesRelay := business.NewMessagesRelay(business.MessagesRelayConfig{
 		Reader:    reader,
 		Sender:    sender,
 		Logger:    infoLogger,
@@ -39,6 +39,6 @@ func Inject(ctx context.Context, cmd *command.Command) (err error) {
 	})
 
 	// Primary adapters
-	*cmd = command.NotifyPurchases(notifier, infoLogger, errLogger)
+	*cmd = command.Relay(messagesRelay, errLogger)
 	return
 }

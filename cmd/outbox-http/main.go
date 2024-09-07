@@ -1,3 +1,5 @@
+//go:build http
+
 package main
 
 import (
@@ -25,16 +27,16 @@ func main() {
 	defer stop()
 
 	// Injecting dependencies
-	mux := http.NewServeMux()
+	var handler http.Handler
 
-	if err := container.Inject(ctx, mux); err != nil {
+	if err := container.Inject(ctx, &handler); err != nil {
 		log.Println(err)
 		return
 	}
 
 	// Building http server
 	server := http.Server{
-		Handler: mux,
+		Handler: handler,
 		Addr:    ":" + port,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
@@ -49,6 +51,8 @@ func main() {
 
 	log.Printf("Server http version '%s' is running on port '%s'\n", runtime.GitCommit, port)
 	log.Println(server.ListenAndServe())
+
+	stop()
 	<-doneCh
 }
 
