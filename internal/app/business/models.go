@@ -15,10 +15,17 @@ func (p Purchase) Validate() error {
 	return nil
 }
 
+type Headers = []Header
+
+type Header struct {
+	Key   string
+	Value []byte
+}
+
 type Message struct {
 	ID      uint64
-	Key     string
 	Topic   string
-	Header  []byte
-	Content []byte
+	Key     []byte
+	Value   []byte
+	Headers Headers
 }

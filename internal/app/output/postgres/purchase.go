@@ -5,8 +5,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"github.com/lib/pq"
 	"github.com/yael-castro/outbox/internal/app/business"
 	"log"
+	"strconv"
 )
 
 type PurchaseSaverConfig struct {
@@ -46,10 +50,21 @@ func (p purchaseSaver) SavePurchase(ctx context.Context, purchase *business.Purc
 	err = tx.QueryRowContext(
 		ctx,
 		insertPurchase,
-		purchase.OrderID,
+		purchaseSQL.OrderID,
 	).Scan(&purchaseSQL.ID)
 	if err != nil {
-		p.errLogger.Printf("inserting purchase record: %v", err)
+		p.errLogger.Printf("inserting purchase record: %[1]v (%[1]T)", err)
+
+		// Error handling for postgres errors
+		const violateUniqueConstraint = "23505"
+
+		var pqErr *pq.Error
+
+		if errors.As(err, &pqErr) && pqErr.Code == violateUniqueConstraint {
+			err = fmt.Errorf("%w: the order id already exists", business.ErrDuplicatedOrderID)
+			return
+		}
+
 		return
 	}
 
@@ -59,13 +74,25 @@ func (p purchaseSaver) SavePurchase(ctx context.Context, purchase *business.Purc
 		return
 	}
 
+	// Setting message headers
+	headers, err := (&Headers{
+		{
+			Key:   "purchase_id",
+			Value: []byte(strconv.FormatInt(purchaseSQL.OrderID.Int64, 10)),
+		},
+	}).MarshalBinary()
+	if err != nil {
+		return err
+	}
+
 	// Inserting outbox message
 	_, err = tx.ExecContext(
 		ctx,
 		insertOutboxMessage,
-		p.topic,
-		nil,
-		message,
+		p.topic, // topic
+		nil,     // partition_key
+		headers, // headers
+		message, // message_value
 	)
 	if err != nil {
 		p.errLogger.Printf("inserting purchase message: %v", err)

@@ -11,10 +11,10 @@ shift
 function build() {
     cd "./cmd/$binary" || exit
 
-    if ! CGO=0 go build \
+    if ! go build \
       -o ../../build/ \
       -tags "$tags" \
-      -ldflags="-X '$runtime.GitCommit=$commit'"
+      -ldflags "-X '$runtime.GitCommit=$commit'"
     then
       exit
     fi
@@ -32,7 +32,7 @@ if [ "$subcommand" = "relay" ]; then
   tags="relay"
 
   printf "\nBuilding CLI in \"build\" directory\n"
-  build
+  CGO_ENABLED=1 build
 fi
 
 if [ "$subcommand" = "http" ]; then
@@ -40,8 +40,8 @@ if [ "$subcommand" = "http" ]; then
   tags="http"
 
   printf "\nBuilding API REST in \"build\" directory\n"
-  build
+  CGO_ENABLED=0 build
 fi
 
-exit 1
 echo "Invalid subcommand: $subcommand"
+exit 1

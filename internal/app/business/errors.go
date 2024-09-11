@@ -13,5 +13,5 @@ const (
 type Error uint8
 
 func (e Error) Error() string {
-	return "error:" + strconv.FormatUint(uint64(e), 10)
+	return "0" + strconv.FormatUint(uint64(e), 10)
 }

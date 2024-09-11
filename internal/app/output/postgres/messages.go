@@ -33,15 +33,21 @@ func (p messageReader) ReadMessages(ctx context.Context) ([]business.Message, er
 	messages := make([]business.Message, 0, expectedMessages)
 
 	for rows.Next() {
+		var rawHeaders []byte
 		message := Message{}
 
 		err = rows.Scan(
 			&message.ID,
 			&message.Topic,
 			&message.Key,
-			&message.Header,
-			&message.Content,
+			&rawHeaders,
+			&message.Value,
 		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = message.Headers.UnmarshalBinary(rawHeaders)
 		if err != nil {
 			return nil, err
 		}

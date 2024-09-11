@@ -41,20 +41,81 @@ func (p *Purchase) MarshalBinary() ([]byte, error) {
 	return proto.Marshal(&purchase)
 }
 
-type Message struct {
-	ID      sql.NullInt64
-	Key     sql.NullString
-	Topic   sql.NullString
-	Header  []byte
-	Content []byte
+type Header struct {
+	Key   string
+	Value []byte
 }
 
-func (m *Message) ToBusiness() *business.Message {
-	return &business.Message{
-		ID:      uint64(m.ID.Int64),
-		Key:     m.Key.String,
-		Topic:   m.Topic.String,
-		Header:  m.Header,
-		Content: m.Content,
+type Headers []Header
+
+func (h *Headers) MarshalBinary() (data []byte, err error) {
+	if len(*h) < 1 {
+		return
 	}
+
+	headers := pb.Headers{
+		Headers: make([]*pb.Header, len(*h)),
+	}
+
+	for i, header := range *h {
+		headers.Headers[i] = &pb.Header{
+			Key:   header.Key,
+			Value: header.Value,
+		}
+	}
+
+	return proto.Marshal(&headers)
+}
+
+func (h *Headers) UnmarshalBinary(data []byte) (err error) {
+	var headers pb.Headers
+
+	err = proto.Unmarshal(data, &headers)
+	if err != nil {
+		return
+	}
+
+	if len(headers.Headers) < 1 {
+		return
+	}
+
+	*h = make([]Header, len(headers.Headers))
+
+	for i, header := range headers.Headers {
+		(*h)[i] = Header{
+			Key:   header.Key,
+			Value: header.Value,
+		}
+	}
+
+	return
+}
+
+type Message struct {
+	ID      sql.NullInt64
+	Topic   sql.NullString
+	Key     []byte
+	Value   []byte
+	Headers Headers
+}
+
+func (m *Message) ToBusiness() (message *business.Message) {
+	message = &business.Message{
+		ID:    uint64(m.ID.Int64),
+		Topic: m.Topic.String,
+		Key:   m.Key,
+		Value: m.Value,
+	}
+
+	if len(m.Headers) < 1 {
+		return
+	}
+
+	message.Headers = make([]business.Header, len(m.Headers))
+
+	for i, header := range m.Headers {
+		message.Headers[i] = (business.Header)(header) // TODO: create a function to replace headers
+	}
+
+	return
 }

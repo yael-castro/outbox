@@ -60,7 +60,8 @@
               "type": "object",
               "properties": {
                 "order_id": {
-                  "type": "integer"
+                  "type": "integer",
+                  "example": 1
                 }
               }
             }

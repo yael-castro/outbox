@@ -3,7 +3,7 @@ package postgres
 // SQL INSERT statements
 const (
 	insertPurchase      = `INSERT INTO purchases(order_id) VALUES ($1) RETURNING id`
-	insertOutboxMessage = `INSERT INTO outbox_messages(topic, partition_key, content) VALUES ($1, $2, $3)`
+	insertOutboxMessage = `INSERT INTO outbox_messages(topic, partition_key, headers, value) VALUES ($1, $2, $3, $4)`
 )
 
 // SQL SELECT statements
@@ -13,8 +13,8 @@ const (
 			id,
 			topic,
 			partition_key,
-			header,
-			content
+			headers,
+			"value"
 		FROM outbox_messages
 		WHERE delivered_at IS NULL
 		ORDER BY created_at ASC

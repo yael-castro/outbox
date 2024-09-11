@@ -4,14 +4,26 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/yael-castro/outbox/internal/app/business"
+	"log"
 	"net/http"
 )
 
+func DefaultErrorFunc(w http.ResponseWriter, err error) {
+	w.Header().Set("Content-Type", "application/json")
+
+	switch err.(type) {
+	case *json.InvalidUnmarshalError, *json.SyntaxError:
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"error": "incorrect json syntax"}`))
+	}
+
+	w.WriteHeader(http.StatusInternalServerError)
+	_, _ = w.Write([]byte(`{"error": "internal server error"}`))
+}
+
 func ErrorFunc(errFunc func(w http.ResponseWriter, err error)) func(http.ResponseWriter, error) {
 	if errFunc == nil {
-		errFunc = func(w http.ResponseWriter, err error) {
-			http.Error(w, "Internal error!", http.StatusInternalServerError)
-		}
+		errFunc = DefaultErrorFunc
 	}
 
 	return func(w http.ResponseWriter, err error) {
@@ -24,16 +36,24 @@ func ErrorFunc(errFunc func(w http.ResponseWriter, err error)) func(http.Respons
 
 		w.Header().Set("Content-Type", "application/json")
 
+		log.Println("business.Error", businessErr)
+
 		switch businessErr {
 		case // Bad requests
 			business.ErrMissingPurchaseID,
 			business.ErrMissingPurchaseOrderID:
-
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"code":  businessErr.Error(),
-				"error": err.Error(),
-			})
+		case
+			business.ErrDuplicatedOrderID:
+			w.WriteHeader(http.StatusConflict)
+		default: // Unhandled errors
+			err = errors.New("unhandled error")
+			w.WriteHeader(http.StatusInternalServerError)
 		}
+
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"code":  businessErr.Error(),
+			"error": err.Error(),
+		})
 	}
 }

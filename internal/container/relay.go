@@ -5,9 +5,11 @@ package container
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/yael-castro/outbox/internal/app/business"
 	"github.com/yael-castro/outbox/internal/app/input/command"
-	"github.com/yael-castro/outbox/internal/app/output/kafka"
+	mykafka "github.com/yael-castro/outbox/internal/app/output/kafka"
 	"github.com/yael-castro/outbox/internal/app/output/postgres"
 	"log"
 	"os"
@@ -19,15 +21,22 @@ func Inject(ctx context.Context, cmd *command.Command) (err error) {
 	infoLogger := log.New(os.Stdout, "[INFO] ", log.LstdFlags)
 
 	var db sql.DB
+	if err = inject(ctx, &db); err != nil {
+		return
+	}
 
-	err = inject(ctx, &db)
-	if err != nil {
+	var producer kafka.Producer
+	if err = injectKafkaProducer(ctx, &producer); err != nil {
 		return
 	}
 
 	// Secondary adapters
 	reader := postgres.NewMessagesReader(&db)
-	sender := kafka.NewMessageSender(infoLogger)
+	sender := mykafka.NewMessageSender(mykafka.MessageSenderConfig{
+		Info:     infoLogger,
+		Error:    errLogger,
+		Producer: &producer,
+	})
 	confirmer := postgres.NewMessageDeliveryConfirmer(&db)
 
 	// Business logic
@@ -40,5 +49,24 @@ func Inject(ctx context.Context, cmd *command.Command) (err error) {
 
 	// Primary adapters
 	*cmd = command.Relay(messagesRelay, errLogger)
+	return
+}
+
+func injectKafkaProducer(_ context.Context, producer *kafka.Producer) (err error) {
+	const kafkaServersEnv = "KAFKA_SERVERS"
+
+	kafkaServers := os.Getenv(kafkaServersEnv)
+	if len(kafkaServers) < 1 {
+		return fmt.Errorf("missing environment variable '%s'", kafkaServersEnv)
+	}
+
+	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers": kafkaServers,
+	})
+	if err != nil {
+		return
+	}
+
+	*producer = *kafkaProducer
 	return
 }

@@ -13,9 +13,9 @@ CREATE TABLE purchases (
 CREATE TABLE outbox_messages (
     id SERIAL PRIMARY KEY,
     topic VARCHAR NOT NULL,
-    partition_key VARCHAR,
-    header  BYTEA,
-    content BYTEA NOT NULL,
+    partition_key BYTEA,
+    headers BYTEA,
+    value BYTEA NOT NULL,
     delivered_at TIMESTAMP DEFAULT NULL,
     -- Common fields
     created_at TIMESTAMP DEFAULT now(),

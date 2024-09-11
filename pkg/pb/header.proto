@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option go_package = "pkg/pb";
+
+message Headers {
+  repeated Header headers = 1;
+}
+
+message Header {
+  string Key = 1;
+  bytes Value = 2;
+}
