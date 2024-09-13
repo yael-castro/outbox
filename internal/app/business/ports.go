@@ -12,7 +12,7 @@ type (
 		ConfirmPurchase(context.Context, *Purchase) error
 	}
 
-	// MessagesRelay defines a way to notify purchases
+	// MessagesRelay defines a way to relay Message(s)
 	MessagesRelay interface {
 		RelayMessages(context.Context) error
 	}
@@ -25,7 +25,7 @@ type (
 		SavePurchase(context.Context, *Purchase) error
 	}
 
-	// MessagesReader defines a way to read the pending PurchaseMessage(s)
+	// MessagesReader defines a way to read the pending Message(s)
 	MessagesReader interface {
 		io.Closer
 		ReadMessages(context.Context) ([]Message, error)
@@ -36,6 +36,7 @@ type (
 		SendMessage(context.Context, *Message) error
 	}
 
+	// MessageDeliveryConfirmer defines a way to confirm the delivery of a Message
 	MessageDeliveryConfirmer interface {
 		ConfirmMessageDelivery(context.Context, uint64) error
 	}
