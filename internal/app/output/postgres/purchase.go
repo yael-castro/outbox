@@ -1,21 +1,35 @@
+//go:build http
+
 package postgres
 
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"github.com/lib/pq"
 	"github.com/yael-castro/outbox/internal/app/business"
 	"log"
+	"strconv"
 )
 
-func NewPurchaseSaver(db *sql.DB, errLogger *log.Logger) business.PurchaseSaver {
+type PurchaseSaverConfig struct {
+	Topic  string
+	DB     *sql.DB
+	Logger *log.Logger
+}
+
+func NewPurchaseSaver(config PurchaseSaverConfig) business.PurchaseSaver {
 	return purchaseSaver{
-		errLogger: errLogger,
-		db:        db,
+		errLogger: config.Logger,
+		topic:     config.Topic,
+		db:        config.DB,
 	}
 }
 
 type purchaseSaver struct {
 	errLogger *log.Logger
+	topic     string
 	db        *sql.DB
 }
 
@@ -36,19 +50,49 @@ func (p purchaseSaver) SavePurchase(ctx context.Context, purchase *business.Purc
 	err = tx.QueryRowContext(
 		ctx,
 		insertPurchase,
-		purchase.OrderID,
+		purchaseSQL.OrderID,
 	).Scan(&purchaseSQL.ID)
 	if err != nil {
-		p.errLogger.Printf("inserting purchase record: %v", err)
+		p.errLogger.Printf("inserting purchase record: %[1]v (%[1]T)", err)
+
+		// Error handling for postgres errors
+		const violateUniqueConstraint = "23505"
+
+		var pqErr *pq.Error
+
+		if errors.As(err, &pqErr) && pqErr.Code == violateUniqueConstraint {
+			err = fmt.Errorf("%w: the order id already exists", business.ErrDuplicatedOrderID)
+			return
+		}
+
 		return
 	}
 
-	// Inserting message outbox
+	message, err := purchaseSQL.MarshalBinary()
+	if err != nil {
+		p.errLogger.Printf("marshaling purchase record: %v", err)
+		return
+	}
+
+	// Setting message headers
+	headers, err := (&Headers{
+		{
+			Key:   "purchase_id",
+			Value: []byte(strconv.FormatInt(purchaseSQL.OrderID.Int64, 10)),
+		},
+	}).MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	// Inserting outbox message
 	_, err = tx.ExecContext(
 		ctx,
-		insertPurchaseOutbox,
-		purchaseSQL.ID,
-		purchaseSQL.OrderID,
+		insertOutboxMessage,
+		p.topic, // topic
+		nil,     // partition_key
+		headers, // headers
+		message, // message_value
 	)
 	if err != nil {
 		p.errLogger.Printf("inserting purchase message: %v", err)

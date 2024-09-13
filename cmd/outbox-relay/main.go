@@ -1,14 +1,11 @@
-//go:build http
-
 package main
 
 import (
 	"context"
+	"github.com/yael-castro/outbox/internal/app/input/command"
 	"github.com/yael-castro/outbox/internal/container"
 	"github.com/yael-castro/outbox/internal/runtime"
 	"log"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,47 +13,33 @@ import (
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if len(port) == 0 {
-		const defaultPort = "8080"
-		port = defaultPort
-	}
-
 	// Building main context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 	defer stop()
 
-	// Injecting dependencies
-	var handler http.Handler
+	// DI in action!
+	var cmd command.Command
 
-	if err := container.Inject(ctx, &handler); err != nil {
+	err := container.Inject(ctx, &cmd)
+	if err != nil {
 		log.Println(err)
 		return
-	}
-
-	// Building http server
-	server := http.Server{
-		Handler: handler,
-		Addr:    ":" + port,
-		BaseContext: func(net.Listener) context.Context {
-			return ctx
-		},
 	}
 
 	// Listening for shutdown gracefully
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	go shutdown(ctx, &server, doneCh)
+	go shutdown(ctx, doneCh)
 
-	log.Printf("Server http version '%s' is running on port '%s'\n", runtime.GitCommit, port)
-	log.Println(server.ListenAndServe())
-
+	// Executing command
+	log.Printf("Message relay version '%s' is running", runtime.GitCommit)
+	cmd(ctx)
 	stop()
 	<-doneCh
 }
 
-func shutdown(ctx context.Context, server *http.Server, doneCh chan<- struct{}) {
+func shutdown(ctx context.Context, doneCh chan struct{}) {
 	<-ctx.Done()
 
 	defer func() {
@@ -68,14 +51,6 @@ func shutdown(ctx context.Context, server *http.Server, doneCh chan<- struct{}) 
 
 		ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
 		defer cancel()
-
-		err := server.Shutdown(ctx)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		log.Println("Server shutdown gracefully")
 
 		db, err := container.SingleDB(ctx)
 		if err != nil {

@@ -1,18 +1,23 @@
+DROP TABLE IF EXISTS outbox_messages;
 DROP TABLE IF EXISTS purchases;
-DROP TABLE IF EXISTS purchases_outbox;
 
 CREATE TABLE purchases (
     id SERIAL PRIMARY KEY,
     order_id INTEGER UNIQUE,
+    -- Common fields
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now(),
     deleted_at TIMESTAMP DEFAULT now()
 );
 
-CREATE TABLE purchases_outbox (
+CREATE TABLE outbox_messages (
     id SERIAL PRIMARY KEY,
-    purchase_id INTEGER NOT NULL REFERENCES purchases(id),
-    order_id INTEGER NOT NULL,
+    topic VARCHAR NOT NULL,
+    partition_key BYTEA,
+    headers BYTEA,
+    value BYTEA NOT NULL,
+    delivered_at TIMESTAMP DEFAULT NULL,
+    -- Common fields
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now(),
     deleted_at TIMESTAMP DEFAULT now()

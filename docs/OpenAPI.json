@@ -16,6 +16,10 @@
   "paths": {
     "/v1/purchases": {
       "post": {
+        "operationId": "createPurchase",
+        "tags": [
+          "Purchases"
+        ],
         "requestBody": {
           "$ref": "#/components/requestBodies/CreatePurchase"
         },
@@ -56,7 +60,8 @@
               "type": "object",
               "properties": {
                 "order_id": {
-                  "type": "integer"
+                  "type": "integer",
+                  "example": 1
                 }
               }
             }
