@@ -36,6 +36,10 @@ func TestPurchaseSaver_SavePurchase(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
 	errLogger := log.New(os.Stderr, "[ERROR] ", log.LstdFlags)
 	saver := NewPurchaseSaver(&db, errLogger)
 
@@ -45,6 +49,10 @@ func TestPurchaseSaver_SavePurchase(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			t.Cleanup(func() {
+				// TODO: Delete created records
+			})
 
 			t.Logf("Purchase: %+v", c.purchase)
 		})
