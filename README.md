@@ -6,7 +6,7 @@ the `message relay` in the same code base to avoid having different projects sha
 
 ![Component diagram](./docs/images/components.svg)
 
-As show in the diagram, this project is compiled in two parts:
+As the diagram shows, this project is compiled in two parts:
 1. `outbox-http` It is the binary in charge of manage the http requests related with purchases (service/sender)
 2. `outbox-relay` It is the binary in charge of read and send the messages (message relay)
 
@@ -30,6 +30,14 @@ I built the package tree following the concepts of the [hexagonal architecture p
 According to the theory of hexagonal architecture, it is possible to have *n* adapters for different external signals (http, gRPC, command line).
 
 So I decided to compile a binary to handle each signal.
+
+### Database schema
+The database schema is described by the `.sql` files in the [sql](./scripts/sql) directory.
+
+To build the database run the following command.
+```shell
+make database
+```
 
 ### Docs
 [See the OpenAPI specification](./docs/OpenAPI.json)

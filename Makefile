@@ -8,3 +8,6 @@ relay:
 
 proto:
 	bash scripts/proto.bash
+
+database:
+	bash scripts/database.bash
