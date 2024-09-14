@@ -1,11 +1,12 @@
-//go:build tests
+//go:build tests && http
 
-package postgres
+package postgres_test
 
 import (
 	"context"
 	"database/sql"
 	"github.com/yael-castro/outbox/internal/app/business"
+	"github.com/yael-castro/outbox/internal/app/output/postgres"
 	"github.com/yael-castro/outbox/internal/container"
 	"log"
 	"os"
@@ -29,23 +30,36 @@ func TestPurchaseSaver_SavePurchase(t *testing.T) {
 	ctx := context.Background()
 
 	// Establishing connection with DB
-	var db sql.DB
+	var db *sql.DB
 
-	err := container.Inject(ctx, &db)
+	c := container.New()
+
+	err := c.Inject(ctx, &db)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Cleanup(func() {
-		_ = db.Close()
+		_ = c.Close(context.Background())
 	})
 
+	topic := os.Getenv("KAFKA_SERVERS")
+	if len(topic) == 0 {
+		t.Fatal("Missing environment variable!")
+	}
+
 	errLogger := log.New(os.Stderr, "[ERROR] ", log.LstdFlags)
-	saver := NewPurchaseSaver(&db, errLogger)
+	saver := postgres.NewPurchaseSaver(postgres.PurchaseSaverConfig{
+		DB:     db,
+		Topic:  topic,
+		Logger: errLogger,
+	})
 
 	for i, c := range cases {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			err := saver.SavePurchase(c.ctx, c.purchase)
+			ctx := c.ctx
+
+			err := saver.SavePurchase(ctx, c.purchase)
 			if err != nil {
 				t.Fatal(err)
 			}

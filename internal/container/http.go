@@ -14,11 +14,28 @@ import (
 	"os"
 )
 
-func Inject(ctx context.Context, handler *http.Handler) (err error) {
-	// External dependencies
-	var db sql.DB
+func New() Container {
+	return new(handler)
+}
 
-	if err = inject(ctx, &db); err != nil {
+type handler struct {
+	container
+}
+
+func (h *handler) Inject(ctx context.Context, a any) error {
+	switch a := a.(type) {
+	case *http.Handler:
+		return h.injectHandler(ctx, a)
+	}
+
+	return h.container.Inject(ctx, a)
+}
+
+func (h *handler) injectHandler(ctx context.Context, handler *http.Handler) (err error) {
+	// External dependencies
+	var db *sql.DB
+
+	if err = h.Inject(ctx, &db); err != nil {
 		return err
 	}
 
@@ -28,7 +45,7 @@ func Inject(ctx context.Context, handler *http.Handler) (err error) {
 	// Secondary adapters
 	const purchaseTopic = "purchases"
 	saver := postgres.NewPurchaseSaver(postgres.PurchaseSaverConfig{
-		DB:     &db,
+		DB:     db,
 		Topic:  purchaseTopic,
 		Logger: errLogger,
 	})
