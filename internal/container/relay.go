@@ -15,29 +15,48 @@ import (
 	"os"
 )
 
-func Inject(ctx context.Context, cmd *command.Command) (err error) {
+func New() Container {
+	return new(relay)
+}
+
+type relay struct {
+	container
+}
+
+func (r *relay) Inject(ctx context.Context, a any) (err error) {
+	switch a := a.(type) {
+	case *command.Command:
+		return r.injectCommand(ctx, a)
+	case **kafka.Producer:
+		return r.injectProducer(ctx, a)
+	}
+
+	return r.container.Inject(ctx, a)
+}
+
+func (r *relay) injectCommand(ctx context.Context, cmd *command.Command) (err error) {
 	// External dependencies
 	errLogger := log.New(os.Stderr, "[ERROR] ", log.LstdFlags)
 	infoLogger := log.New(os.Stdout, "[INFO] ", log.LstdFlags)
 
-	var db sql.DB
-	if err = inject(ctx, &db); err != nil {
+	var db *sql.DB
+	if err = r.Inject(ctx, &db); err != nil {
 		return
 	}
 
-	var producer kafka.Producer
-	if err = injectKafkaProducer(ctx, &producer); err != nil {
+	var producer *kafka.Producer
+	if err = r.Inject(ctx, &producer); err != nil {
 		return
 	}
 
 	// Secondary adapters
-	reader := postgres.NewMessagesReader(&db)
+	reader := postgres.NewMessagesReader(db)
 	sender := mykafka.NewMessageSender(mykafka.MessageSenderConfig{
 		Info:     infoLogger,
 		Error:    errLogger,
-		Producer: &producer,
+		Producer: producer,
 	})
-	confirmer := postgres.NewMessageDeliveryConfirmer(&db)
+	confirmer := postgres.NewMessageDeliveryConfirmer(db)
 
 	// Business logic
 	messagesRelay := business.NewMessagesRelay(business.MessagesRelayConfig{
@@ -52,7 +71,7 @@ func Inject(ctx context.Context, cmd *command.Command) (err error) {
 	return
 }
 
-func injectKafkaProducer(_ context.Context, producer *kafka.Producer) (err error) {
+func (r *relay) injectProducer(_ context.Context, producer **kafka.Producer) (err error) {
 	const kafkaServersEnv = "KAFKA_SERVERS"
 
 	kafkaServers := os.Getenv(kafkaServersEnv)
@@ -67,6 +86,6 @@ func injectKafkaProducer(_ context.Context, producer *kafka.Producer) (err error
 		return
 	}
 
-	*producer = *kafkaProducer
+	*producer = kafkaProducer
 	return
 }

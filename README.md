@@ -10,7 +10,7 @@ As the diagram shows, this project is compiled in two parts:
 1. `outbox-http` It is the binary in charge of manage the http requests related with purchases (service/sender)
 2. `outbox-relay` It is the binary in charge of read and send the messages (message relay)
 
-## Architecture decisions
+### Architecture decisions
 ###### Go project layout standard
 I decided to follow the [Go project layout standard](https://github.com/golang-standards/project-layout).
 ###### Package tree
@@ -18,13 +18,13 @@ I built the package tree following the concepts of the [hexagonal architecture p
 ```
 .
 ├── cmd
-└── internal
-    ├── app
-    │   ├── business (Use cases, rules, data models and ports)
-    │   ├── input    (Everything related to "drive" adapters)
-    │   └── output   (Everything related to "driven" adapters)
-    ├── container (DI container)
-    └── pkg       (Public and global code, potencially libraries)
+├── internal
+│   ├── app
+│   │   ├── business (Use cases, rules, data models and ports)
+│   │   ├── input    (Everything related to "drive" adapters)
+│   │   └── output   (Everything related to "driven" adapters)
+│   └── container (DI container)
+└── pkg (Public and global code, potencially libraries)
 ```
 ###### Compile only what is required
 According to the theory of hexagonal architecture, it is possible to have *n* adapters for different external signals (http, gRPC, command line).

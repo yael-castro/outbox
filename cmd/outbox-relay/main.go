@@ -20,7 +20,9 @@ func main() {
 	// DI in action!
 	var cmd command.Command
 
-	err := container.Inject(ctx, &cmd)
+	c := container.New()
+
+	err := c.Inject(ctx, &cmd)
 	if err != nil {
 		log.Println(err)
 		return
@@ -30,40 +32,34 @@ func main() {
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	go shutdown(ctx, doneCh)
+	go func() {
+		<-ctx.Done()
+		shutdown(c, doneCh)
+	}()
 
 	// Executing command
 	log.Printf("Message relay version '%s' is running", runtime.GitCommit)
 	cmd(ctx)
-	stop()
+
+	// Gracefully shutdown
+	stop() // TODO: avoid repeat this call
 	<-doneCh
 }
 
-func shutdown(ctx context.Context, doneCh chan struct{}) {
-	<-ctx.Done()
-
+func shutdown(c container.Container, doneCh chan struct{}) {
 	defer func() {
 		doneCh <- struct{}{}
 	}()
 
-	{
-		const gracePeriod = 10 * time.Second
+	const gracePeriod = 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
+	defer cancel()
 
-		ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
-		defer cancel()
-
-		db, err := container.SingleDB(ctx)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		log.Println("Database close gracefully")
+	err := c.Close(ctx)
+	if err != nil {
+		log.Println(err)
+		return
 	}
+
+	log.Println("Database close gracefully")
 }

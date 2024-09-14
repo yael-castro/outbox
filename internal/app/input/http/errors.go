@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/yael-castro/outbox/internal/app/business"
-	"log"
 	"net/http"
 )
 
 func DefaultErrorFunc(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 
+	//goland:noinspection ALL
 	switch err.(type) {
 	case *json.InvalidUnmarshalError, *json.SyntaxError:
 		w.WriteHeader(http.StatusUnprocessableEntity)
@@ -36,8 +36,7 @@ func ErrorFunc(errFunc func(w http.ResponseWriter, err error)) func(http.Respons
 
 		w.Header().Set("Content-Type", "application/json")
 
-		log.Println("business.Error", businessErr)
-
+		//goland:noinspection ALL
 		switch businessErr {
 		case // Bad requests
 			business.ErrMissingPurchaseID,

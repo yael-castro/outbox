@@ -29,7 +29,9 @@ func main() {
 	// Injecting dependencies
 	var handler http.Handler
 
-	if err := container.Inject(ctx, &handler); err != nil {
+	c := container.New()
+
+	if err := c.Inject(ctx, &handler); err != nil {
 		log.Println(err)
 		return
 	}
@@ -43,52 +45,45 @@ func main() {
 		},
 	}
 
-	// Listening for shutdown gracefully
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	go shutdown(ctx, &server, doneCh)
+	// Listening for shutdown gracefully
+	go func() {
+		<-ctx.Done()
+		shutdown(&server, c, doneCh)
+	}()
 
 	log.Printf("Server http version '%s' is running on port '%s'\n", runtime.GitCommit, port)
 	log.Println(server.ListenAndServe())
 
-	stop()
+	// Gracefully shutdown
+	stop() // TODO: avoid repeat this call
 	<-doneCh
 }
 
-func shutdown(ctx context.Context, server *http.Server, doneCh chan<- struct{}) {
-	<-ctx.Done()
-
+func shutdown(server *http.Server, c container.Container, doneCh chan<- struct{}) {
 	defer func() {
 		doneCh <- struct{}{}
 	}()
 
-	{
-		const gracePeriod = 10 * time.Second
+	const gracePeriod = 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
+	defer cancel()
 
-		ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
-		defer cancel()
-
-		err := server.Shutdown(ctx)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		log.Println("Server shutdown gracefully")
-
-		db, err := container.SingleDB(ctx)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		log.Println("Database close gracefully")
+	err := server.Shutdown(ctx)
+	if err != nil {
+		log.Println(err)
+		return
 	}
+
+	log.Println("Server shutdown gracefully")
+
+	err = c.Close(ctx)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	log.Println("Database close gracefully")
 }
