@@ -16,7 +16,10 @@ const (
 			headers,
 			"value"
 		FROM outbox_messages
-		WHERE delivered_at IS NULL
+		WHERE
+			delivered_at IS NULL
+			AND
+			deleted_at IS NULL
 		ORDER BY created_at ASC
 		LIMIT $1
 	`
