@@ -16,24 +16,26 @@ import (
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if len(port) == 0 {
-		const defaultPort = "8080"
-		port = defaultPort
-	}
-
 	// Building main context
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 	defer stop()
 
-	// Injecting dependencies
+	// Declaration of dependencies
 	var handler http.Handler
 
+	// Injecting dependencies
 	c := container.New()
 
 	if err := c.Inject(ctx, &handler); err != nil {
 		log.Println(err)
 		return
+	}
+
+	// Getting http port
+	port := os.Getenv("PORT")
+	if len(port) == 0 {
+		const defaultPort = "8080"
+		port = defaultPort
 	}
 
 	// Building http server
@@ -45,32 +47,49 @@ func main() {
 		},
 	}
 
-	doneCh := make(chan struct{})
-	defer close(doneCh)
-
 	// Listening for shutdown gracefully
+	shutdownCh := make(chan struct{}, 1)
+
 	go func() {
+		// Waiting for shutdown gracefully
 		<-ctx.Done()
-		shutdown(&server, c, doneCh)
+
+		shutdown(c, &server)
+
+		// Confirm shutdown gracefully
+		shutdownCh <- struct{}{}
+		close(shutdownCh)
 	}()
 
-	log.Printf("Server http version '%s' is running on port '%s'\n", runtime.GitCommit, port)
-	log.Println(server.ListenAndServe())
+	// Running http server
+	errCh := make(chan error, 1)
 
-	// Gracefully shutdown
-	stop() // TODO: avoid repeat this call
-	<-doneCh
+	go func() {
+		log.Printf("Server http version '%s' is running on port '%s'\n", runtime.GitCommit, port)
+		errCh <- server.ListenAndServe()
+		close(errCh)
+	}()
+
+	// Waiting for cancellation or error
+	select {
+	case <-ctx.Done():
+		stop()
+		<-shutdownCh
+
+	case err := <-errCh:
+		stop()
+		<-shutdownCh
+
+		log.Fatal(err)
+	}
 }
 
-func shutdown(server *http.Server, c container.Container, doneCh chan<- struct{}) {
-	defer func() {
-		doneCh <- struct{}{}
-	}()
-
+func shutdown(c container.Container, server *http.Server) {
 	const gracePeriod = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
 	defer cancel()
 
+	// Closing http server
 	err := server.Shutdown(ctx)
 	if err != nil {
 		log.Println(err)
@@ -79,11 +98,12 @@ func shutdown(server *http.Server, c container.Container, doneCh chan<- struct{}
 
 	log.Println("Server shutdown gracefully")
 
+	// Closing DI container
 	err = c.Close(ctx)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	log.Println("Database close gracefully")
+	log.Println("DI container gracefully closed")
 }

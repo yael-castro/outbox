@@ -2,17 +2,13 @@ package command
 
 import (
 	"context"
-	"github.com/yael-castro/outbox/internal/app/business"
-	"log"
 )
 
-type Command func(context.Context)
+const (
+	successExitCode        = 0
+	fatalExitCode          = 1
+	incorrectUsageExitCode = 2
+)
 
-func Relay(relay business.MessagesRelay, errLogger *log.Logger) Command {
-	return func(ctx context.Context) {
-		err := relay.RelayMessages(ctx)
-		if err != nil {
-			errLogger.Println(err)
-		}
-	}
-}
+// Command alias for "func(context.Context) int"
+type Command = func(context.Context) int
