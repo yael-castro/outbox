@@ -17,9 +17,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill, syscall.SIGTERM)
 	defer stop()
 
-	// DI in action!
+	// Declaration of dependencies
 	var cmd command.Command
 
+	// Injecting dependencies
 	c := container.New()
 
 	err := c.Inject(ctx, &cmd)
@@ -29,28 +30,43 @@ func main() {
 	}
 
 	// Listening for shutdown gracefully
-	doneCh := make(chan struct{})
-	defer close(doneCh)
+	shutdownCh := make(chan struct{}, 1)
 
 	go func() {
+		// Waiting for close gracefully
 		<-ctx.Done()
-		shutdown(c, doneCh)
+
+		shutdown(c)
+
+		// Confirm shutdown gracefully
+		shutdownCh <- struct{}{}
+		close(shutdownCh)
 	}()
 
 	// Executing command
-	log.Printf("Message relay version '%s' is running", runtime.GitCommit)
-	cmd(ctx)
+	exitCodeCh := make(chan int, 1)
 
-	// Gracefully shutdown
-	stop() // TODO: avoid repeat this call
-	<-doneCh
-}
-
-func shutdown(c container.Container, doneCh chan struct{}) {
-	defer func() {
-		doneCh <- struct{}{}
+	go func() {
+		log.Printf("Message relay version '%s' is running", runtime.GitCommit)
+		exitCodeCh <- cmd(ctx)
+		close(exitCodeCh)
 	}()
 
+	// Waiting for cancellation or exit code
+	select {
+	case <-ctx.Done():
+		stop()
+		<-shutdownCh
+
+	case exitCode := <-exitCodeCh:
+		stop()
+		<-shutdownCh
+
+		os.Exit(exitCode)
+	}
+}
+
+func shutdown(c container.Container) {
 	const gracePeriod = 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), gracePeriod)
 	defer cancel()
@@ -61,5 +77,5 @@ func shutdown(c container.Container, doneCh chan struct{}) {
 		return
 	}
 
-	log.Println("Database close gracefully")
+	log.Println("DI container gracefully closed")
 }
